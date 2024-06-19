@@ -69,7 +69,6 @@ class SignupForm extends Model
         }
         
         $user = new User();
-        $employees = new Employees(); // Buat objek Employees baru
         $user->username = $this->username;
         $user->email = $this->email;
         $user->setPassword($this->password);
@@ -77,29 +76,6 @@ class SignupForm extends Model
         // $user->generateAccessToken(); // Generate access token
         $user->generateEmailVerificationToken();
 
-        // Simpan data user
-        if (!$user->save()) {
-            return null;
-        }
-
-        // Set data Employees
-        $employees->nama_depan = $this->username; 
-        $employees->email = $this->email; 
-     
-        // $employees->access_token = $user->access_token; 
-
- 
-        if (!$employees->save()) {
-       
-            $user->delete();
-            return null;
-        }
-
-
-        $employeeId = $employees->id;
-
-
-        $user->employee_id = $employeeId;
         return $user->save() && $this->sendEmail($user);
     }
 

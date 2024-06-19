@@ -17,8 +17,8 @@ class m240423_084449_create_comment_table extends Migration
             'title' => $this->string(512),
             'body' => $this->text(),
             'post_id' => $this->integer(),
-            'created_at' => $this->integer(),
-            'updated_at' => $this->integer(),
+            'created_at' => $this->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+            'updated_at' => $this->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
             'created_by' => $this->integer()
         ]);
         $this->addForeignKey('FK_comment_user_created_by', '{{%comment}}', 'created_by', '{{%user}}', 'id');

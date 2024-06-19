@@ -5,103 +5,48 @@ namespace api\models;
 use Yii;
 use yii\base\Model;
 use common\models\User;
-use common\models\Employees;
+// use common\models\Employees;
 
 /**
  * Signup form
  */
 class SignupForm extends Model
 {
+    public $employee_id;
     public $username;
     public $email;
     public $password;
 
-
-    /**
-     * {@inheritdoc}
-     */
     public function rules()
     {
         return [
-            ['username', 'trim'],
-            ['username', 'required'],
-            ['username', 'unique', 'targetClass' => '\common\models\User', 'message' => 'This username has already been taken.'],
-            ['username', 'string', 'min' => 2, 'max' => 255],
-
-            ['email', 'trim'],
-            ['email', 'required'],
+            [['employee_id', 'username', 'email', 'password'], 'required'],
+            [['employee_id'], 'integer'],
+            [['username', 'email'], 'string', 'max' => 255],
             ['email', 'email'],
-            ['email', 'string', 'max' => 255],
+            ['username', 'unique', 'targetClass' => '\common\models\User', 'message' => 'This username has already been taken.'],
             ['email', 'unique', 'targetClass' => '\common\models\User', 'message' => 'This email address has already been taken.'],
-
-            ['password', 'required'],
-            ['password', 'string', 'min' => Yii::$app->params['user.passwordMinLength']],
+            ['password', 'string', 'min' => 6],
         ];
     }
 
-    /**
-     * Signs user up.
-     *
-     * @return bool whether the creating new account was successful and email was sent
-     */
-    // public function signup()
-    // {
-    //     if (!$this->validate()) {
-    //         return null;
-    //     }
-        
-    //     $user = new User();
-    //     $employees = new Employees();
-    //     $user->username = $this->username;
-    //     $user->email = $this->email;
-    //     $user->setPassword($this->password);
-    //     $user->generateAuthKey();
-    //     $user->generateAccessToken();
-       
-    //     $user->generateEmailVerificationToken();
-
-    //     return $user->save() && $this->sendEmail($user);
-    // }
     public function signup()
     {
         if (!$this->validate()) {
             return null;
         }
-        
+
         $user = new User();
-        $employees = new Employees(); // Buat objek Employees baru
+        $user->employee_id = $this->employee_id;
         $user->username = $this->username;
         $user->email = $this->email;
         $user->setPassword($this->password);
         $user->generateAuthKey();
-        // $user->generateAccessToken(); // Generate access token
         $user->generateEmailVerificationToken();
 
-        // Simpan data user
-        if (!$user->save()) {
-            return null;
-        }
-
-        // Set data Employees
-        $employees->nama_depan = $this->username; 
-        $employees->email = $this->email; 
-     
-        // $employees->access_token = $user->access_token; 
-
- 
-        if (!$employees->save()) {
-       
-            $user->delete();
-            return null;
-        }
-
-
-        $employeeId = $employees->id;
-
-
-        $user->employee_id = $employeeId;
         return $user->save() && $this->sendEmail($user);
     }
+
 
 
     /**

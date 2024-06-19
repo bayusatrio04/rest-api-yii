@@ -10,62 +10,13 @@ use yii\web\Response;
 use Yii;
 use common\models\SalaryCalculatorToken;
 use common\models\SalaryCalculatorTokenMonth;
+use common\models\SalaryCalculatorTokenYear;
 use common\models\calculateByTokenFilter;
 
 class SalaryCalculateByTokenController extends ActiveController
 {
     public $modelClass = Salaries::class;
-    public function actionCreate(){
-        Yii::$app->response->format = Response::FORMAT_JSON;
 
-
-        // Dapatkan basic_salary dari PositionSalaries
-     
-
-
-  
-        // Buat instance dari SalaryCalculatorTokenMonth
-        $calculator = new SalaryCalculatorTokenMonth();
-        $monthlySalary = $calculator->calculateByTokenMonth();
-        $model = new Salaries();
-        $model->employee_id = $monthlySalary['ID Karyawan'];
-        $model->salary_date = $monthlySalary['Month']; // Simpan bulan gaji
-        $model->total_salary = $monthlySalary['data'][0]['Total Gaji']; // Simpan total gaji
-        $model->save();
-        return 'success';
-    }
-    public function actionCalculate()
-    {
-        Yii::$app->response->format = Response::FORMAT_JSON;
-    
-        // Buat instance dari SalaryCalculatorToken
-        $calculator = new SalaryCalculatorToken();
-    
-        // Hitung gaji bulanan berdasarkan pengguna yang sedang login
-        $monthlySalary = $calculator->calculateByToken();
-    
-        // Kembalikan respons dalam format JSON
-        return [
-            'Day_salary' => $monthlySalary,
-        ];
-    }
-    public function actionCalculateMonth()
-    {
-        Yii::$app->response->format = Response::FORMAT_JSON;
-    
-        // Buat instance dari SalaryCalculatorTokenMonth
-        $calculator = new SalaryCalculatorTokenMonth();
-        $monthlySalary = $calculator->calculateByTokenMonth();
-
-    
-        // Kembalikan respons dalam format JSON
-        return [
-            'Status' => $monthlySalary['Status'],
-            'ID Karyawan' => $monthlySalary['ID Karyawan'],
-            'Month' => $monthlySalary['Month'],
-            'data' => $monthlySalary['data'],
-        ];
-    }
     public function actionFilter()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
@@ -77,6 +28,19 @@ class SalaryCalculateByTokenController extends ActiveController
         
         $monthlySalary = $calculator->calculateByTokenFilter();
         return $monthlySalary;
+            
+    }
+    public function actionYear()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        
+        $calculator = new SalaryCalculatorTokenYear();
+        $request = Yii::$app->request;
+
+        $calculator->selectedYear = $request->post('selectedYear');
+        
+        $YearSalary = $calculator->calculateByTokenFilter();
+        return $YearSalary;
             
     }
 }

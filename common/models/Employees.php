@@ -16,8 +16,11 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $email
  * @property string|null $tanggal_lahir
  * @property string|null $jenis_kelamin
- * @property int|null $no_telepon
+ * @property string|null $no_telepon
+ * @property string|null $status_nikah
+ * @property int|null $jumlah_tanggungan
  * @property int|null $position_id
+ * @property string|null $type_karyawan
  * @property int|null $created_at
  * @property int|null $updated_at
  
@@ -60,8 +63,11 @@ class Employees extends ActiveRecord
     {
         return [
             [['tanggal_lahir'], 'safe'],
-            [['no_telepon', 'position_id'], 'integer'],
-            [['nama_depan', 'nama_belakang', 'email', 'jenis_kelamin'], 'string', 'max' => 255],
+            [['position_id', 'jumlah_tanggungan'], 'integer'],
+            [['nama_depan', 'nama_belakang', 'email', 'jenis_kelamin', 'type_karyawan', 'created_at', 'updated_at', 'status_nikah'], 'string', 'max' => 255],
+            [['no_telepon'], 'string', 'max' => 16],
+            [['email'], 'unique'],
+            [['no_telepon'], 'unique'],
             [['position_id'], 'exist', 'skipOnError' => true, 'targetClass' => EmployeesPosition::class, 'targetAttribute' => ['position_id' => 'id']],
         ];
     }
@@ -80,6 +86,7 @@ class Employees extends ActiveRecord
             'jenis_kelamin' => 'Jenis Kelamin',
             'no_telepon' => 'No Telepon',
             'position_id' => 'Position ID',
+            'type_karyawan' => 'Type Karyawan',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ];
@@ -93,6 +100,14 @@ class Employees extends ActiveRecord
     public function getPosition()
     {
         return $this->hasOne(EmployeesPosition::class, ['id' => 'position_id']);
+    }
+    public function getSalaries()
+    {
+        return $this->hasMany(Salaries::class, ['employee_id' => 'id']);
+    }
+    public function getUsers()
+    {
+        return $this->hasMany(User::class, ['employee_id' => 'id']);
     }
 
     /**

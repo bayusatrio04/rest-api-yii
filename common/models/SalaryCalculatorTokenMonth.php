@@ -5,13 +5,31 @@ namespace common\models;
 
 use yii\base\Model;
 use common\models\AbsensiLog;
-use common\models\PositionSalaries;
+use common\models\EmployeesPositionSalaries;
 use common\models\User;
 use common\models\Employees; 
+use common\models\EmployeesAllowance; 
+use common\models\EmployeesTax; 
 use Yii;
 
 class SalaryCalculatorTokenMonth extends Model
 {
+    private $ptkp = [
+        'TK0' => 54000000, // Tidak Kawin, 0 Tanggungan
+        'K0' => 58500000,  // Kawin, 0 Tanggungan
+        'K1' => 63000000,  // Kawin, 1 Tanggungan
+        'K2' => 67500000,  // Kawin, 2 Tanggungan
+        'K3' => 72000000,   // Kawin, 3 Tanggungan
+        'K4' => 72000000,   // Kawin, 3 Tanggungan
+        'K5' => 72000000,   // Kawin, 3 Tanggungan
+        'K6' => 72000000,   // Kawin, 3 Tanggungan
+        'K7' => 72000000,   // Kawin, 3 Tanggungan
+        'K8' => 72000000,   // Kawin, 3 Tanggungan
+        'K9' => 72000000,   // Kawin, 3 Tanggungan
+        'K10' => 72000000,   // Kawin, 3 Tanggungan
+        'K11' => 72000000,   // Kawin, 3 Tanggungan
+        'K12' => 72000000,   // Kawin, 3 Tanggungan
+    ];
     public $selectedMonth;
     public $selectedYear;
     public function PengecekanHari($tanggal)
@@ -26,232 +44,189 @@ class SalaryCalculatorTokenMonth extends Model
             'hari' => $namaHari
         ];
     }
-    
-    public function calculateByTokenMonth()
+    public function calculatePKP($totalGaji, $statusKawin, $jumlahTanggungan)
     {
-        $data=[];
+        // Hitung Penghasilan Bruto Bulanan
+        $penghasilanBrutoBulanan = $totalGaji;
+
+        // Hitung Biaya Jabatan maksimal 500 ribu / bulan atau 6juta / tahun
+        $biayaJabatan = min(0.05 * $penghasilanBrutoBulanan, 500000);
+
+        // Hitung Iuran Pensiun
+        $iuranPensiun = 0.0475 * $penghasilanBrutoBulanan;
+
+        // Hitung Penghasilan Netto Bulanan
+        $penghasilanNettoBulanan = $penghasilanBrutoBulanan - $biayaJabatan - $iuranPensiun;
+
+        // Hitung Penghasilan Netto Tahunan
+        $penghasilanNettoTahunan = $penghasilanNettoBulanan * 12;
+
+
+        $ptkpKey = $statusKawin . $jumlahTanggungan; // contoh TK0, TK1, TK2
+        if (isset($this->ptkp[$ptkpKey])) {
+            $ptkp = $this->ptkp[$ptkpKey];
+        } else {
+            $ptkp = 0;
+        }
+        
+
+        // Hitung PKP
+        $pkp = max(0, $penghasilanNettoTahunan - $ptkp);
+
+        return [
+            'iuranJabatan'=>$biayaJabatan,
+            'iuranPensiun'=>$iuranPensiun,
+            'penghasilanNettoTahunan' => $penghasilanNettoTahunan,
+            'ptkp' => $ptkp,
+            'pkp' => $pkp,
+            'ptkpKey' => $ptkpKey
+        ];
+    }
+    public function calculateTax($pkp)
+    {
+        $pph21 = 0;
+
+        if ($pkp <= 50000000) {
+            $pph21 = 0.05 * $pkp;
+        } elseif ($pkp <= 250000000) {
+            $pph21 = 0.05 * 50000000 + 0.15 * ($pkp - 50000000);
+        } elseif ($pkp <= 500000000) {
+            $pph21 = 0.05 * 50000000 + 0.15 * 200000000 + 0.25 * ($pkp - 250000000);
+        } else {
+            $pph21 = 0.05 * 50000000 + 0.15 * 200000000 + 0.25 * 250000000 + 0.30 * ($pkp - 500000000);
+        }
+
+        return $pph21 / 12; // PPh 21 bulanan
+    }
+
+     public function calculateByTokenFilter()
+    {
+        $data = [];
         $userId = Yii::$app->user->id;
 
         if (!$userId) {
             return ['error' => 'User not authenticated'];
         }
 
-        // Dapatkan basic_salary dari PositionSalaries
         $user = User::findOne($userId);
         $employeeId = $user->employee_id;
         $employee = Employees::findOne($employeeId);
-     
-        $positionSalary = PositionSalaries::findOne(['position_id' => $employee->position_id]);
+        $getEmployeePosition = EmployeesPosition::findOne($employee->position_id);
+        $getGajiPokok = EmployeesPositionSalaries::findOne(['id' => $getEmployeePosition->position_salary_id]);
+        $gajiPokok = $getGajiPokok->gaji_pokok;
 
-        if (!$positionSalary) {
+        if (!$gajiPokok) {
             return ['error' => 'Position salary not found'];
         }
 
-        $hourlyRate = $positionSalary->basic_salary ; 
-        $mealAllowance = number_format($positionSalary->meal_allowance, 0, '', '') ; 
-        $selectedYear = date('Y');
-        $selectedMonth = date('m');
-        // Ambil data absensi berdasarkan 'created_by' dari tabel absensi_log
-        // $absensiLogs = AbsensiLog::find()->where(['created_by' => $userId, 'id_absensi_type' => 1])->all(); 
         $absensiLogs = AbsensiLog::find()
             ->where(['created_by' => $userId, 'id_absensi_type' => 1])
-            ->andWhere(['YEAR(tanggal_absensi)' => $selectedYear, 'MONTH(tanggal_absensi)' => $selectedMonth])
+            ->andWhere(['YEAR(tanggal_absensi)' => $this->selectedYear, 'MONTH(tanggal_absensi)' => $this->selectedMonth])
             ->all();
 
-        // Inisialisasi variabel untuk menyimpan total jam kerja
         $totalJamKerja = 0;
-    
         foreach ($absensiLogs as $absensiLog) {
             $tanggal = $absensiLog->tanggal_absensi;
-            $ket = $absensiLog->keterangan;
-    
-            // Panggil fungsi PengecekanHari untuk mendapatkan hasil pengecekan hari
             $hasilPengecekan = $this->PengecekanHari($tanggal);
-    
-            // Ambil waktu CHECK-IN dan CHECK-OUT
             $checkInLog = AbsensiLog::find()
-            ->where(['created_by' => $userId, 'tanggal_absensi' => $tanggal, 'id_absensi_type' => 1])
+                ->where(['created_by' => $userId, 'tanggal_absensi' => $tanggal, 'id_absensi_type' => 1])
                 ->one();
             $checkOutLog = AbsensiLog::find()
-            ->where(['created_by' => $userId, 'tanggal_absensi' => $tanggal, 'id_absensi_type' => 2])
+                ->where(['created_by' => $userId, 'tanggal_absensi' => $tanggal, 'id_absensi_type' => 2])
                 ->one();
-                $checkOutTime = $checkOutLog ? strtotime($checkOutLog->waktu_absensi) : null; // Waktu check-out dalam detik
-                $checkInTime = $checkInLog ? strtotime($checkInLog->waktu_absensi) : null;
+            $checkOutTime = $checkOutLog ? strtotime($checkOutLog->waktu_absensi) : null;
+            $checkInTime = $checkInLog ? strtotime($checkInLog->waktu_absensi) : null;
 
-            // Hitung total jam kerja jika terdapat data CHECK-OUT
-            if ($checkOutTime !== null) {
-                // Hitung selisih waktu antara CHECK-OUT dan CHECK-IN dalam satuan jam
-                $totalJamKerja += ($checkOutTime - $checkInTime) / (60 * 60); // Konversi ke jam
+            if ($checkOutTime !== null && $checkInTime !== null) {
+                $totalJamKerja += ($checkOutTime - $checkInTime) / (60 * 60);
+                $checkInLimit = strtotime('08:15');
+                $checkOutLimit = $hasilPengecekan['hari'] === 'Saturday' ? strtotime('14:00') : strtotime('16:00');
 
-                // Tentukan batas toleransi waktu CHECK-IN dan CHECK-OUT
-                $checkInLimit = strtotime('08:15'); // Batas toleransi untuk check-in (8:15)
-                $checkOutLimit = $hasilPengecekan['hari'] === 'Saturday' ? strtotime('14:00') : strtotime('16:00'); // Batas toleransi untuk check-out (14:00 for Saturday, 16:00 otherwise)
-
-                // Periksa apakah waktu CHECK-IN dan CHECK-OUT berada dalam batas toleransi
                 if ($checkInTime > $checkInLimit) {
-                    // Hitung keterlambatan untuk check-in
-                    $lateForCheckIn = ($checkInTime - $checkInLimit) / 60; // Hitung keterlambatan dalam menit
-                    // Kurangi waktu check-in dengan keterlambatan
+                    $lateForCheckIn = ($checkInTime - $checkInLimit) / 60;
                     $checkInTime -= $lateForCheckIn * 60;
                 }
             }
         }
 
-        // Konversi total jam kerja ke format "jam menit"
         $totalJamKerjaFormatted = sprintf('%d jam %d menit', floor($totalJamKerja), ($totalJamKerja - floor($totalJamKerja)) * 60);
+        $totalKehadiran = count($absensiLogs);
 
-        // Hitung total gaji berdasarkan total jam kerja
-        // $totalSalaryDay = $totalJamKerja  * $hourlyRate;
-        $totalBasicSalary =  number_format($hourlyRate, 0, '', '');
-        $totalKehadiran = count($absensiLogs) . " Hari";
-        $totalMealAllowance = count($absensiLogs) * $mealAllowance ;
+        $meal_allowance_day = 0;
+        $tunjangan_jabatan = 0;
+        $tunjangan_keluarga = 0;
+        $tunjangan_transport = 0;
+        $tunjangan_kehadiran = 0;
+        $deductions_bpjs_kesehatan = 0;
+        $deductions_bpjs_ketenagakerjaan = 0;
+        $tax_percentage = 0;
 
-        $data[] = 
-            [
+        if ($employee->position_id == 1) {
+            $get_allowance = EmployeesAllowance::findOne(['id' => 3]);
+        } elseif ($employee->position_id == 8 || $employee->position_id == 9) {
+            $get_allowance = EmployeesAllowance::findOne(['id' => 2]);
+        } else {
+            $get_allowance = EmployeesAllowance::findOne(['id' => 1]);
+        }
+
+        $meal_allowance_day = $get_allowance->tunjangan_makan;
+        $tunjangan_jabatan = $get_allowance->tunjangan_jabatan;
+        $tunjangan_keluarga = $get_allowance->tunjangan_keluarga;
+        $tunjangan_transport = $get_allowance->tunjangan_transport;
+        $tunjangan_kehadiran = $get_allowance->tunjangan_kehadiran;
+        $deductions_bpjs_kesehatan = $get_allowance->bpjs_kesehatan;
+        $deductions_bpjs_ketenagakerjaan = $get_allowance->bpjs_ketenagakerjaan;
+        $get_tax_percentage = EmployeesTax::findOne(['id' => 5]);
+
+
+        $totalMealAllowance = $meal_allowance_day * $totalKehadiran;
+        $totalGaji = $totalMealAllowance+ $gajiPokok;
+        $statusKawin = $employee->status_nikah;
+        $jumlahTanggungan = $employee->jumlah_tanggungan;
+        $pkpResult = $this->calculatePKP($totalGaji, $statusKawin, $jumlahTanggungan);
+        $pkp = $pkpResult['pkp'];
+        $pph21 = $this->calculateTax($pkp);
+
+        if ($totalKehadiran > 20 || $this->selectedMonth == date('m', strtotime('last day of this month'))) {
+            $data[] = [
                 'ID Karyawan' => $userId,
-                'Total Kehadiran' => $totalKehadiran,
+                'Jabatan Karyawan' => $getEmployeePosition->position_name,
+                'Status Nikah' => $employee->status_nikah,
+                'Jumlah Tanggungan' => $employee->jumlah_tanggungan,
+                'Gaji Pokok' => (int) ($gajiPokok),
+                'Tunjangan Makan per-day' => (int) $meal_allowance_day,
+                'Total Kehadiran' => $totalKehadiran . " Hari",
                 'Total Jam Bekerja' => $totalJamKerjaFormatted,
-                'Uang makan per-Day' => $mealAllowance,
-                'Uang makan per-Month' => $totalMealAllowance,
-                'Gaji Pokok' => $totalBasicSalary,
-                'Total Gaji' => $totalMealAllowance +$totalBasicSalary,
-               
-         
+                'Total Tunjangan Jabatan' => floatval($tunjangan_jabatan),
+                'Total Tunjangan Keluarga' => floatval($tunjangan_keluarga),
+                'Total Tunjangan Makan' => floatval($totalMealAllowance),
+                'Total Tunjangan Transport' => floatval($tunjangan_transport),
+                'Total Tunjangan Kehadiran' => floatval($tunjangan_kehadiran),
+                'Total Deductions Bpjs Kesehatan' => floatval($deductions_bpjs_kesehatan),
+                'Total Deductions Bpjs Ketenagakerjaan' => floatval($deductions_bpjs_ketenagakerjaan),
+                'Total Deductions Biaya Jabatan' => $pkpResult['iuranJabatan'],
+                'Total Deductions Iuran Pensiun' => $pkpResult['iuranPensiun'],
+                'Total Gaji' => (int) ($totalGaji),
+                'Total Netto Setahun' => number_format($pkpResult['penghasilanNettoTahunan'], 0, ',', '.'),
+                'Golongan PTKP' => $pkpResult['ptkpKey'],
+                'Total PTKP' => $pkpResult['ptkp'],
+                'Total PKP' => number_format($pkpResult['pkp'], 0, ',', '.'),
+                'Total PPh 21' => (int)($pph21),
+                'Earnings' => (int) $totalGaji - (int) $pph21 - floatval($deductions_bpjs_kesehatan) - floatval($deductions_bpjs_ketenagakerjaan),
             ];
-   
-        $response = [
-            'Status' => '200',
-            'Messages' => 'Success',
-            'Month' => date('F Y'),
-            'data' => $data,
-        ];
-        return  $response;
-        
-    }
-    public function calculateByTokenFilter()
-    {
-        // Ambil user ID dari token akses
-        $userId = Yii::$app->user->id;
 
-        if (!$userId) {
-            return ['error' => 'User not authenticated'];
-        }
-
-        // Dapatkan basic_salary dari PositionSalaries
-        $user = User::findOne($userId);
-        $employeeId = $user->employee_id;
-        $employee = Employees::findOne($employeeId);
-        $positionSalary = PositionSalaries::findOne(['position_id' => $employee->position_id]);
-        $jabatan = EmployeesPosition::findOne(['id'=> $employee->position_id]);
-
-        if (!$positionSalary) {
-            return ['error' => 'Position salary not found'];
-        }
-
-
-        $absensiLogs = AbsensiLog::find()
-        ->where(['created_by' => $userId, 'id_absensi_type' => 1, 
-        'MONTH(tanggal_absensi)'=>$this->selectedMonth, 'YEAR(tanggal_absensi)'=>$this->selectedYear])
-        ->all();
-
-        $totalJamKerja = 0;
-    
-        foreach ($absensiLogs as $absensiLog) {
-            $tanggal = $absensiLog->tanggal_absensi;
-            $ket = $absensiLog->keterangan;
-    
-            // Panggil fungsi PengecekanHari untuk mendapatkan hasil pengecekan hari
-            $hasilPengecekan = $this->PengecekanHari($tanggal);
-    
-            // Ambil waktu CHECK-IN dan CHECK-OUT
-            $checkInLog = AbsensiLog::find()
-            ->where(['created_by' => $userId, 'tanggal_absensi' => $tanggal, 'id_absensi_type' => 1])
-                ->one();
-            $checkOutLog = AbsensiLog::find()
-            ->where(['created_by' => $userId, 'tanggal_absensi' => $tanggal, 'id_absensi_type' => 2])
-                ->one();
-                $checkOutTime = $checkOutLog ? strtotime($checkOutLog->waktu_absensi) : null; // Waktu check-out dalam detik
-                $checkInTime = $checkInLog ? strtotime($checkInLog->waktu_absensi) : null;
-
-            // Hitung total jam kerja jika terdapat data CHECK-OUT
-            if ($checkOutTime !== null) {
-                // Hitung selisih waktu antara CHECK-OUT dan CHECK-IN dalam satuan jam
-                $totalJamKerja += ($checkOutTime - $checkInTime) / (60 * 60); // Konversi ke jam
-
-                // Tentukan batas toleransi waktu CHECK-IN dan CHECK-OUT
-                $checkInLimit = strtotime('08:15'); // Batas toleransi untuk check-in (8:15)
-                $checkOutLimit = $hasilPengecekan['hari'] === 'Saturday' ? strtotime('14:00') : strtotime('16:00'); // Batas toleransi untuk check-out (14:00 for Saturday, 16:00 otherwise)
-
-                // Periksa apakah waktu CHECK-IN dan CHECK-OUT berada dalam batas toleransi
-                if ($checkInTime > $checkInLimit) {
-                    // Hitung keterlambatan untuk check-in
-                    $lateForCheckIn = ($checkInTime - $checkInLimit) / 60; // Hitung keterlambatan dalam menit
-                    // Kurangi waktu check-in dengan keterlambatan
-                    $checkInTime -= $lateForCheckIn * 60;
-                }
-            }
-        }
-   
-        $totalKehadiran = COUNT($absensiLogs) ;
-        if($totalKehadiran > 0){
-            $tax_percentage = (float)$positionSalary->tax_percentage;
-
-            $basic_salary =  number_format($positionSalary->basic_salary, 0, '', '');
-            $meal_per_day = number_format($positionSalary->meal_allowance, 0, '', ''); 
-
-            if($positionSalary){
-                $totalMealAllowance = count($absensiLogs) * $meal_per_day;
-                $totalGaji = $basic_salary + $totalMealAllowance;
-
-                if($totalGaji >= 4500000){
-
-                    $tax_amount = $totalGaji * $tax_percentage;
-                    $totalGaji -= $tax_amount;
-
-                }else{
-
-                    $tax_amount = 0;
-                    
-                }
-            }else{
-                $totalMealAllowance = 0;
-                $totalGaji = 0;
-                $basic_salary = 0;
-                $tax_amount = 0;
-            }
-            $totalJamKerjaFormatted = sprintf('%d jam %d menit', floor($totalJamKerja), ($totalJamKerja - floor($totalJamKerja)) * 60);
-
-            $data[] = 
-            [
-                'ID Karyawan' => $userId,
-                'Jabatan Karyawan' => $jabatan->position,
-                'Total Kehadiran' => $totalKehadiran,
-                'Total Jam Bekerja' => $totalJamKerjaFormatted,
-                'Tunjangan Makan per-Day' => (int)$meal_per_day,
-                'Tunjangan Makan per-Month' => $totalMealAllowance,
-                'Gaji Pokok' => (int)$basic_salary,
-                'Pajak PPh21'=> $tax_amount,
-                'Total Gaji' => $totalGaji,
-               
-         
-            ];
-            $dateString = $this->selectedYear . '-' . $this->selectedMonth . '-01';
-            $formattedDate = date("F Y", strtotime($dateString));
-            $response = [
+            return [
                 'Status' => '200',
                 'Messages' => 'Success',
-                'Month' => $formattedDate,
+                'Month' => $this->selectedMonth . ' ' . $this->selectedYear,
                 'data' => $data,
             ];
-            return  $response;
-
-        }else{
-             Yii::$app->response->statusCode = 204;
+        } else {
             return [
-                'status'=>'204',
-                'Message'=>'No Content',
-                
-                ];
+                'Status' => '204',
+               'Messages' => 'Data penggajian belum tersedia. Silakan cek kembali nanti.',
+               'data'=> [null]
+            ];
         }
     }
 }

@@ -81,6 +81,10 @@ return [
             'enableStrictParsing' => false,
             'rules' => [
                 'auth' => 'site/login',
+                'auth/register' => 'site/register',
+                'users/delete' => 'site/delete',
+                'users/read' => 'site/read',
+                'users/reset-password-default' => 'site/reset-password-default',
                 'auth/logout' => 'logout/index',
                 'auth/user' => 'user-login/index',
                 'auth/profile' => 'profile/search',

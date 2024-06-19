@@ -3,57 +3,40 @@
 namespace common\models;
 
 use Yii;
-use yii\db\ActiveRecord;
-use yii\db\BaseActiveRecord;
-use yii\behaviors\BlameableBehavior;
-use yii\behaviors\TimestampBehavior;
+
 /**
- * This is the model class for table "{{%employees_position}}".
+ * This is the model class for table "employees_position".
  *
  * @property int $id
- * @property string|null $position
- * @property string|null $description
- * @property int|null $created_at
- * @property int|null $updated_at
+ * @property int|null $position_salary_id
+ * @property string $position_name
+ * @property string $description
+ * @property string $created_at
+ * @property string $updated_at
  *
  * @property Employees[] $employees
+ * @property EmployeesPositionSalaries $positionSalary
  */
-class EmployeesPosition extends ActiveRecord
+class EmployeesPosition extends \yii\db\ActiveRecord
 {
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return '{{%employees_position}}';
+        return 'employees_position';
     }
-    public function behaviors()
-    {
-        return [
-            [
-                'class' => TimestampBehavior::class,
-                'attributes' => [
-                    BaseActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
-                    BaseActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
-                ],
-                'value' => function () {
-                    return date('d-m-Y H:i:s');
-                },
-            ],
-            // [
-            //     'class' => BlameableBehavior::class,
-            //     'updatedByAttribute' => false
-            // ]
-        ];
-    }
+
     /**
      * {@inheritdoc}
      */
     public function rules()
     {
         return [
-            // [['created_at', 'updated_at'], 'integer'],
-            [['position', 'description'], 'string', 'max' => 255],
+            [['position_salary_id'], 'integer'],
+            [['position_name', 'description', 'created_at', 'updated_at'], 'required'],
+            [['position_name', 'description', 'created_at', 'updated_at'], 'string', 'max' => 255],
+            [['position_salary_id'], 'exist', 'skipOnError' => true, 'targetClass' => EmployeesPositionSalaries::class, 'targetAttribute' => ['position_salary_id' => 'id']],
         ];
     }
 
@@ -64,7 +47,8 @@ class EmployeesPosition extends ActiveRecord
     {
         return [
             'id' => 'ID',
-            'position' => 'Position',
+            'position_salary_id' => 'Position Salary ID',
+            'position_name' => 'Position Name',
             'description' => 'Description',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
@@ -74,7 +58,7 @@ class EmployeesPosition extends ActiveRecord
     /**
      * Gets query for [[Employees]].
      *
-     * @return \yii\db\ActiveQuery|\common\models\query\EmployeesQuery
+     * @return \yii\db\ActiveQuery
      */
     public function getEmployees()
     {
@@ -82,11 +66,12 @@ class EmployeesPosition extends ActiveRecord
     }
 
     /**
-     * {@inheritdoc}
-     * @return \common\models\query\EmployeesPositionQuery the active query used by this AR class.
+     * Gets query for [[PositionSalary]].
+     *
+     * @return \yii\db\ActiveQuery
      */
-    public static function find()
+    public function getPositionSalary()
     {
-        return new \common\models\query\EmployeesPositionQuery(get_called_class());
+        return $this->hasOne(EmployeesPositionSalaries::class, ['id' => 'position_salary_id']);
     }
 }

@@ -20,9 +20,8 @@ class m240423_182127_create_absensi_log_table extends Migration
             'day' => $this->string(255)->notNull(),
             'waktu_absensi' => $this->time()->notNull(),
             'latitude' => $this->string(255)->notNull(),
-            'keterangan' => $this->string(255)->notNull(),
             'longitude' => $this->string(255)->notNull(),
-            'bukti_hadir' => $this->string(255)->notNull(),
+            // 'bukti_hadir' => $this->string(255)->notNull(),
             'created_at' => $this->string(255)->notNull(),
             'updated_at' => $this->string(255)->notNull(),
             'created_by' =>  $this->integer()->notNull()           
@@ -33,18 +32,7 @@ class m240423_182127_create_absensi_log_table extends Migration
         $this->addForeignKey('FK_absensi_log_id_absensi_status', '{{%absensi_log}}', 'id_absensi_status', '{{%absensi_status}}', 'id');
 
         // Menambahkan trigger untuk menentukan keterangan otomatis
-        $this->execute("
-            CREATE TRIGGER trg_set_keterangan
-            BEFORE INSERT ON {{%absensi_log}}
-            FOR EACH ROW
-            BEGIN
-                IF NEW.id_absensi_type = 1 AND NEW.waktu_absensi > '08:15:59' THEN
-                    SET NEW.keterangan = 'Late';
-                ELSE
-                    SET NEW.keterangan = 'On-Time';
-                END IF;
-            END;
-        ");
+
     }
 
     /**

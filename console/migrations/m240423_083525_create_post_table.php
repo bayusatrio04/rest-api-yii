@@ -16,8 +16,8 @@ class m240423_083525_create_post_table extends Migration
             'id' => $this->primaryKey(),
             'title' => $this->string(512),
             'body' => 'LONGTEXT',
-            'created_at' => $this->integer(),
-            'updated_at' => $this->integer(),
+            'created_at' => $this->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+            'updated_at' => $this->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
             'created_by' => $this->integer()
         ]);
         $this->addForeignKey('FK_post_user_created_by', '{{%post}}', 'created_by', '{{%user}}', 'id');

@@ -21,8 +21,8 @@ class m130524_201442_init extends Migration
             'email' => $this->string()->notNull()->unique(),
 
             'status' => $this->smallInteger()->notNull()->defaultValue(10),
-            'created_at' => $this->integer()->notNull(),
-            'updated_at' => $this->integer()->notNull(),
+            'created_at' => $this->string(255),
+            'updated_at' => $this->string(255),
             'employee_id' => $this->integer()->Null(),
         ], $tableOptions);
         $this->addForeignKey('FK_employees_employee_id', '{{%user}}', 'employee_id', '{{%employees}}', 'id');

@@ -1,6 +1,7 @@
 <?php
 
 namespace api\controllers;
+use yii\web\NotFoundHttpException;
 
 use api\models\ResendVerificationEmailForm;
 use api\models\VerifyEmailForm;
@@ -45,6 +46,85 @@ class SiteController extends Controller
         
 
     }
+    public function actionRegister()
+    {
+        $model = new SignupForm();
+        $model->load(Yii::$app->request->post(), '');
+
+        if ($model->signup()) {
+            return [
+                'status' => 'success',
+                'message' => 'Registration successful.',
+            ];
+        } else {
+            Yii::$app->response->statusCode = 422; // Unprocessable Entity
+            return [
+                'status' => 'error',
+                'message' => 'Failed to register.',
+                'errors' => $model->errors,
+            ];
+        }
+    }
+    public function actionRead($id)
+    {
+        $user = User::findOne($id);
+    
+        if ($user === null) {
+            throw new NotFoundHttpException('User not found.');
+        }
+    
+        return [
+            'status' => 'success',
+            'data' => $user,
+        ];
+    }
+    
+    public function actionDelete($id)
+    {
+        $user = User::findOne($id);
+
+        if ($user === null) {
+            throw new NotFoundHttpException('User not found.');
+        }
+
+        if ($user->delete()) {
+            return [
+                'status' => 'success',
+                'message' => 'Account deleted successfully.',
+            ];
+        } else {
+            Yii::$app->response->statusCode = 500; // Internal Server Error
+            return [
+                'status' => 'error',
+                'message' => 'Failed to delete account.',
+            ];
+        }
+
+        
+    }
+    public function actionResetPasswordDefault($id)
+    {
+        $user = User::findOne($id);
+        if ($user === null) {
+            throw new NotFoundHttpException('User not found.');
+        }
+
+        $user->setPassword('Djipay@123');
+        if ($user->save()) {
+            return [
+                'status' => 'success',
+                'message' => 'Password has been reset to default.',
+            ];
+        } else {
+            Yii::$app->response->statusCode = 500; // Internal Server Error
+            return [
+                'status' => 'error',
+                'message' => 'Failed to reset password.',
+                'errors' => $user->errors,
+            ];
+        }
+    }
+    
 
     
     

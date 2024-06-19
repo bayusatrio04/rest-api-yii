@@ -35,6 +35,28 @@ class AbsensiLogController extends ActiveController
             return ['success' => false, 'errors' => $model->errors];
         }
     }
+    public function actionCheckInToday()
+    {
+        $userId = Yii::$app->user->id;
+
+        if (!$userId) {
+            return ['error' => 'User not authenticated'];
+        }
+
+        $today = date('Y-m-d');
+        
+        $checkInLogs = AbsensiLog::find()
+            ->where(['created_by' => $userId])
+            ->andWhere(['tanggal_absensi' => $today])
+            ->andWhere(['id_absensi_type' => 1]) // 1 untuk check-in
+            ->all();
+        
+            if (empty($checkInLogs)) {
+                return ["messages"=>"Tidak ada catatan kehadiran hari ini."];
+            } else {
+                return $checkInLogs;
+            }
+    }
     public function actionGetImage($uploadedFile)
     {
         $filePath = Yii::getAlias('@webroot') . '/uploads/' . $uploadedFile; // Sesuaikan dengan lokasi gambar di server

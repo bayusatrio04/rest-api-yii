@@ -15,7 +15,7 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $tanggal_absensi
  * @property string|null $waktu_absensi
  * @property string|null $day
- * @property string|null $keterangan
+
  * @property string|null $latitude
  * @property string|null $longitude
  * @property string|null $bukti_hadir
@@ -64,7 +64,7 @@ class AbsensiLog extends ActiveRecord
         return [
             [['id_absensi_type', 'id_absensi_status', 'created_by'], 'integer'],
             [['tanggal_absensi', 'waktu_absensi', 'tanggal_lahir'], 'safe'],
-            [['latitude', 'longitude', 'bukti_hadir', 'day', 'keterangan'], 'string', 'max' => 255],
+            [['latitude', 'longitude', 'bukti_hadir', 'day'], 'string', 'max' => 255],
             [['created_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['created_by' => 'id']],
             [['id_absensi_status'], 'exist', 'skipOnError' => true, 'targetClass' => AbsensiStatus::class, 'targetAttribute' => ['id_absensi_status' => 'id']],
             [['id_absensi_type'], 'exist', 'skipOnError' => true, 'targetClass' => AbsensiType::class, 'targetAttribute' => ['id_absensi_type' => 'id']],
@@ -83,7 +83,7 @@ class AbsensiLog extends ActiveRecord
             'tanggal_absensi' => 'Tanggal Absensi',
             'waktu_absensi' => 'Waktu Absensi',
             'day' => 'Day',
-            'keterangan' => 'Keterangan',
+      
             'tanggal_lahir' => 'Tanggal Lahir',
             'latitude' => 'Latitude',
             'longitude' => 'Longitude',
